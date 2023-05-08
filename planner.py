@@ -13,6 +13,7 @@ import ast
 
 from sklearn.preprocessing import MinMaxScaler
 
+
 # print the full dataframe
 # pd.set_option('display.max_columns', None)
 # pd.set_option('display.max_rows', None)
@@ -69,7 +70,6 @@ def RW(name, par, explainer=None, smote=False, small=0.05, act=False, number=5):
             actionable.append(1)
         else:
             actionable.append(0)
-    print(actionable)
     df1 = prepareData(name[0])
     df2 = prepareData(name[1])
     df3 = prepareData(name[2])
@@ -109,7 +109,7 @@ def RW(name, par, explainer=None, smote=False, small=0.05, act=False, number=5):
         for j in range(0, len(y_test2)):
             actual = X_test2.values[j]
             if df3.iloc[j, 0] == df2.iloc[i, 0] and y_test1[i] != 0:
-                print('df2', i, 'df3', j)
+                # print('df2', i, 'df3', j)
                 temp = X_test1.values[i].copy()
                 tem, plan, rec = RandomWalk(temp, number)
                 score.append(overlap(plan, actual))
@@ -182,7 +182,8 @@ def planner(name, par, explainer=None, smote=False, small=0.05, act=False):
         sm = SMOTE()
         X_train1_s, y_train1_s = sm.fit_resample(X_train1, y_train1)
         clf1.fit(X_train1_s, y_train1_s)
-        explainer = lime.lime_tabular.LimeTabularExplainer(training_data=X_train1_s.values, training_labels=y_train1_s.values,
+        explainer = lime.lime_tabular.LimeTabularExplainer(training_data=X_train1_s.values,
+                                                           training_labels=y_train1_s.values,
                                                            feature_names=df11.columns,
                                                            discretizer='entropy', feature_selection='lasso_path',
                                                            mode='classification')
@@ -261,7 +262,6 @@ def CF(name, number_act=5):
     bug1 = bugs(name[0])
     bug2 = bugs(name[1])
     bug3 = bugs(name[2])
-    
     df11 = df1.iloc[:, 1:]
     df22 = df2.iloc[:, 1:]
     df33 = df3.iloc[:, 1:]
@@ -340,7 +340,8 @@ def CF(name, number_act=5):
                         plan = actionRulesDiscovery.predict(defect)
                     except:
                         continue
- 
+                    # if plan.empty:
+                    #     continue
 
                     recommended_plan = plan[plan['support after'] == plan['support after'].max()]
                     recommended_plan = recommended_plan.filter(regex='recommended')
@@ -371,7 +372,6 @@ def CF(name, number_act=5):
                     size.append(size_interval([ast.literal_eval(x) for x in tmp_recommended.values[0]]))
                     score2.append(len([n for n in rec if n != 0]))
                     records.append(rec)
-
                     tp, tn, fp, fn = abcd(defect.values[0], recommended_plan.values[0], actual.values[0], actionable)
                     matrix.append([tp, tn, fp, fn])
 
@@ -704,7 +704,6 @@ def shatnawi(X_train, y_train, X_test, y_test, p):
                                         range(len(metrics))):  # range(len(metrics)):
         thresh = VARL(Coeff, Inter, p0=p)  # default VARL p0=0.05 (95% CI)
         if P_Val < 0.05:
-
             changes[idx] = thresh
     """
     Apply Plans Sequentially
@@ -972,7 +971,7 @@ def xtree(name):
                 actual = X_test2.iloc[j, :]
                 overlap_scores.append(overlap1(plan, plan, actual))
                 bcs.append(bug3[j] - bug2[i])
-                score2.append(overlap( plan, X_test1.values[i]))
+                score2.append(overlap(plan, X_test1.values[i]))
                 size.append(size_interval(plan))
                 tp, tn, fp, fn = abcd(temp, plan, actual, rec)
                 matrix.append([tp, tn, fp, fn])
@@ -1060,6 +1059,93 @@ def historical_logs(name, par, explainer=None, smote=False, small=0.05, act=Fals
                 old_change.append(o)
                 new_change.append(n)
 
+                break
+    print("Runtime:", time.time() - start_time)
+    print(name[0], par)
+    print('>>>')
+    print('>>>')
+    print('>>>')
+    return old_change, new_change
+
+
+def historical_logs_commits(name, par, explainer=None, smote=False, small=0.05, act=False):
+    start_time = time.time()
+    files = [name[0], name[1], name[2]]
+    freq = [0] * 11
+    deltas = []
+    for j in range(0, len(files) - 2):
+        df1 = prepareCommitData(files[j]).iloc[:, 2:]
+        df2 = prepareCommitData(files[j + 1]).iloc[:, 2:]
+        for i in range(1, 12):
+            col1 = df1.iloc[:, i]
+            col2 = df2.iloc[:, i]
+            deltas.append(hedge(col1, col2))
+    deltas = sorted(range(len(deltas)), key=lambda k: deltas[k], reverse=True)
+
+    actionable = []
+    for i in range(0, len(deltas)):
+        if i in deltas[0:5]:
+            actionable.append(1)
+        else:
+            actionable.append(0)
+    df1 = prepareCommitData(name[0])
+    df2 = prepareCommitData(name[1])
+    df3 = prepareCommitData(name[2])
+
+    df11 = df1.iloc[:, 2:]
+    df22 = df2.iloc[:, 2:]
+    df33 = df3.iloc[:, 2:]
+
+    df1n = norm(df11, df11)
+    df2n = norm(df11, df22)
+    df3n = norm(df11, df33)
+
+    X_train1 = df1n.iloc[:, :-1]
+    y_train1 = df1n.iloc[:, -1]
+    X_test1 = df2n.iloc[:, :-1]
+    y_test1 = df2n.iloc[:, -1]
+    X_test2 = df3n.iloc[:, :-1]
+    y_test2 = df3n.iloc[:, -1]
+
+    old_change = []
+    new_change = []
+    par = 0
+    clf1 = RandomForestClassifier(n_estimators=100, max_depth=20, min_samples_split=10, n_jobs=-1)
+    #     clf1 =  MLPClassifier(hidden_layer_sizes=[10],max_iter=2000,early_stopping=False,learning_rate='adaptive')
+    if smote:
+        sm = SMOTE()
+        X_train1_s, y_train1_s = sm.fit_resample(X_train1, y_train1)
+        clf1.fit(X_train1_s, y_train1_s)
+        explainer = lime.lime_tabular.LimeTabularExplainer(training_data=X_train1_s.values,
+                                                           training_labels=y_train1_s.values,
+                                                           feature_names=df11.columns,
+                                                           discretizer='entropy', feature_selection='lasso_path',
+                                                           mode='classification', sample_around_instance=True)
+    else:
+        clf1.fit(X_train1, y_train1)
+        explainer = lime.lime_tabular.LimeTabularExplainer(training_data=X_train1.values, training_labels=y_train1,
+                                                           feature_names=df11.columns,
+                                                           discretizer='entropy', feature_selection='lasso_path',
+                                                           mode='classification', sample_around_instance=True)
+    for i in range(0, len(y_test1)):
+        for j in range(0, len(y_test2)):
+            if df3.iloc[j, 0] == df2.iloc[i, 0] and y_test1[i] != 0:
+                actual = X_test2.values[j]
+                ins = explainer.explain_instance(data_row=X_test1.values[i], predict_fn=clf1.predict_proba,
+                                                 num_features=12,
+                                                 num_samples=5000)
+                ind = ins.local_exp[1]
+                temp = X_test1.values[i].copy()
+                if act:
+                    tem, plan, rec = flip(temp, ins.as_list(label=1), ind, clf1, df1n.columns, 0, par=11,
+                                          actionable=actionable)
+                else:
+                    tem, plan, rec = flip(temp, ins.as_list(label=1), ind, clf1, df1n.columns, 0, par=11,
+                                          actionable=None)
+                o = track1(plan, temp)
+                n = track1(plan, actual)
+                old_change.append(o)
+                new_change.append(n)
 
                 break
     print("Runtime:", time.time() - start_time)
@@ -1068,3 +1154,420 @@ def historical_logs(name, par, explainer=None, smote=False, small=0.05, act=Fals
     print('>>>')
     print('>>>')
     return old_change, new_change
+
+
+def TL_commits(name, rules, smote=False, act=False):
+    start_time = time.time()
+    files = [name[0], name[1], name[2]]
+    freq = [0] * 11
+    deltas = []
+    for j in range(0, len(files) - 2):
+        df1 = prepareCommitData(files[j]).iloc[:, 2:]
+        df2 = prepareCommitData(files[j + 1]).iloc[:, 2:]
+        for i in range(1, 12):
+            col1 = df1.iloc[:, i]
+            col2 = df2.iloc[:, i]
+            deltas.append(hedge(col1, col2))
+    deltas = sorted(range(len(deltas)), key=lambda k: deltas[k], reverse=True)
+
+    actionable = []
+    for i in range(0, len(deltas)):
+        if i in deltas[0:5]:
+            actionable.append(1)
+        else:
+            actionable.append(0)
+
+    df1 = prepareCommitData(name[0])
+    df2 = prepareCommitData(name[1])
+    df3 = prepareCommitData(name[2])
+
+    df11 = df1.iloc[:, 2:]
+    df22 = df2.iloc[:, 2:]
+    df33 = df3.iloc[:, 2:]
+
+    df1n = norm(df11, df11)
+    df2n = norm(df22, df22)
+    df3n = norm(df22, df33)
+
+    X_train1 = df1n.iloc[:, :-1]
+    y_train1 = df1n.iloc[:, -1]
+    X_test1 = df2n.iloc[:, :-1]
+    y_test1 = df2n.iloc[:, -1]
+    X_test2 = df3n.iloc[:, :-1]
+    y_test2 = df3n.iloc[:, -1]
+
+    score = []
+    size = []
+    score2 = []
+    records = []
+    matrix = []
+    seen = []
+    seen_id = []
+    par = 12
+    clf1 = RandomForestClassifier(n_estimators=100, max_depth=20, min_samples_split=10, n_jobs=-1)
+    #     clf1 =  MLPClassifier(hidden_layer_sizes=[10],max_iter=2000,early_stopping=False,learning_rate='adaptive')
+    #     clf1 = SVC(gamma='auto',probability=True)
+    if smote:
+        sm = SMOTE()
+        X_train1_s, y_train1_s = sm.fit_resample(X_train1, y_train1)
+        clf1.fit(X_train1_s, y_train1_s)
+
+        explainer = lime.lime_tabular.LimeTabularExplainer(training_data=X_train1_s.values,
+                                                           training_labels=y_train1_s.values,
+                                                           feature_names=df11.columns,
+                                                           discretizer='entropy', feature_selection='lasso_path',
+                                                           mode='classification')
+    else:
+        clf1.fit(X_train1, y_train1)
+        explainer = lime.lime_tabular.LimeTabularExplainer(training_data=X_train1.values, training_labels=y_train1,
+                                                           feature_names=df11.columns,
+                                                           discretizer='entropy', feature_selection='lasso_path',
+                                                           mode='classification')
+    for i in tqdm(range(0, len(y_test1))):
+        for j in range(0, len(y_test2)):
+            actual = X_test2.values[j]
+            if df3.iloc[j, 0] == df2.iloc[i, 0] and y_test1[i] != 0:
+                #                 print('df2',i,'df3',j)
+                #                 if clf1.predict([X_test1.values[i]])==0:
+                if True:
+                    ins = explainer.explain_instance(data_row=X_test1.values[i], predict_fn=clf1.predict_proba,
+                                                     num_features=20,
+                                                     num_samples=5000)
+                    ind = ins.local_exp[1]
+                    temp = X_test1.values[i].copy()
+                    if act:
+
+                        tem, plan, rec = flip(temp, ins.as_list(label=1), ind, clf1, df1n.columns, par,
+                                              par=12, actionable=actionable)
+                    else:
+                        tem, plan, rec = flip(temp, ins.as_list(label=1), ind, clf1, df1n.columns, par,
+                                              par=12, actionable=None)
+                    if act:
+                        if rec in seen_id:
+                            supported_plan_id = seen[seen_id.index(rec)]
+                        else:
+                            #                             if seen_id:
+                            #                                 for i in range(len(seen_id)):
+                            #                                     print(rec == seen_id[i])
+                            supported_plan_id = find_supported_plan(rec, rules, top=5)
+                            seen_id.append(rec.copy())
+                            seen.append(supported_plan_id)
+
+                        for k in range(len(rec)):
+                            if rec[k] != 0:
+                                if (k not in supported_plan_id) and ((0 - k) not in supported_plan_id):
+                                    plan[k][0], plan[k][1] = tem[k], tem[k]
+                                    rec[k] = 0
+
+                    # plans.append(plan)
+                    # actuals.append(actual)
+                    score.append(overlap(plan, actual))
+                    size.append(size_interval(plan))
+                    score2.append(len([n for n in rec if n != 0]))
+                    records.append(rec)
+                    tp, tn, fp, fn = abcd(temp, plan, actual, rec)
+
+                    matrix.append([tp, tn, fp, fn])
+                break
+    print("Runtime:", time.time() - start_time)
+    print(name[0], par)
+    print('>>>')
+    print('>>>')
+    print('>>>')
+    print('>>>>>>>>>>>>>>>>>>>>>>>>' * 20)
+    print(np.median(score))
+    return score, size, score2, records, matrix
+
+
+def runalves_commit(name, thresh=0.7):
+    df1 = prepareCommitData(name[0])
+    df2 = prepareCommitData(name[1])
+    df3 = prepareCommitData(name[2])
+
+    df11 = df1.iloc[:, 2:]
+    df22 = df2.iloc[:, 2:]
+    df33 = df3.iloc[:, 2:]
+
+    df1n = norm(df11, df11)
+    df2n = norm(df22, df22)
+    df3n = norm(df22, df33)
+
+    X_train1 = df1n.iloc[:, :-1]
+    y_train1 = df1n.iloc[:, -1]
+    X_test1 = df2n.iloc[:, :-1]
+    y_test1 = df2n.iloc[:, -1]
+    X_test2 = df3n.iloc[:, :-1]
+    y_test2 = df3n.iloc[:, -1]
+
+    plans, recs = alves(X_train1, X_test1, y_test1, thresh=thresh)
+    score = []
+    score2 = []
+    bugchange = []
+    size = []
+    matrix = []
+    for i in range(0, len(y_test1)):
+        for j in range(0, len(y_test2)):
+            actual = X_test2.values[j]
+            if df3.iloc[j, 0] == df2.iloc[i, 0] and y_test1[i] != 0:
+                temp = X_test1.values[i].copy()
+                plan = plans.iloc[i, :].values
+                rec = recs[i]
+                #                 print('actual',actual)
+                #                 print('id1',plan[0][0])
+                score.append(overlap(plan, actual))
+                score2.append(overlap(plan, X_test1.values[i]))
+                size.append(size_interval(plan))
+                tp, tn, fp, fn = abcd(temp, plan, actual, rec)
+                matrix.append([tp, tn, fp, fn])
+                break
+    print(name[0])
+    print('>>>')
+    print('>>>')
+    print('>>>')
+    return score, size, score2, matrix
+
+
+def runshat_commit(name, p=0.05):
+    df1 = prepareCommitData(name[0])
+    df2 = prepareCommitData(name[1])
+    df3 = prepareCommitData(name[2])
+
+    df11 = df1.iloc[:, 2:]
+    df22 = df2.iloc[:, 2:]
+    df33 = df3.iloc[:, 2:]
+
+    df1n = norm(df11, df11)
+    df2n = norm(df22, df22)
+    df3n = norm(df22, df33)
+
+    X_train1 = df1n.iloc[:, :-1]
+    y_train1 = df1n.iloc[:, -1]
+    X_test1 = df2n.iloc[:, :-1]
+    y_test1 = df2n.iloc[:, -1]
+    X_test2 = df3n.iloc[:, :-1]
+    y_test2 = df3n.iloc[:, -1]
+
+    plans, recs = shatnawi(X_train1, y_train1, X_test1, y_test1, p=p)
+    score = []
+    score2 = []
+    size = []
+    matrix = []
+    for i in range(0, len(y_test1)):
+        for j in range(0, len(y_test2)):
+            actual = X_test2.values[j]
+            if df3.iloc[j, 0] == df2.iloc[i, 0] and y_test1[i] != 0:
+                temp = X_test1.values[i].copy()
+                plan = plans.iloc[i, :].values
+                rec = recs[i]
+
+                score.append(overlap(plan, actual))
+                score2.append(overlap(plan, X_test1.values[i]))
+                size.append(size_interval(plan))
+                tp, tn, fp, fn = abcd(temp, plan, actual, rec)
+                matrix.append([tp, tn, fp, fn])
+                break
+    print(name[0])
+    print('>>>')
+    print('>>>')
+    print('>>>')
+    return score, size, score2, matrix
+
+
+def runolive_commit(name):
+    df1 = prepareCommitData(name[0])
+    df2 = prepareCommitData(name[1])
+    df3 = prepareCommitData(name[2])
+
+    df11 = df1.iloc[:, 2:]
+    df22 = df2.iloc[:, 2:]
+    df33 = df3.iloc[:, 2:]
+
+    df1n = norm(df11, df11)
+    df2n = norm(df22, df22)
+    df3n = norm(df22, df33)
+
+    X_train1 = df1n.iloc[:, :-1]
+    y_train1 = df1n.iloc[:, -1]
+    X_test1 = df2n.iloc[:, :-1]
+    y_test1 = df2n.iloc[:, -1]
+    X_test2 = df3n.iloc[:, :-1]
+    y_test2 = df3n.iloc[:, -1]
+
+    plans, recs = oliveira(X_train1, X_test1)
+    score = []
+    bugchange = []
+    size = []
+    score2 = []
+    matrix = []
+    for i in range(0, len(y_test1)):
+        for j in range(0, len(y_test2)):
+            actual = X_test2.values[j]
+            if df3.iloc[j, 0] == df2.iloc[i, 0] and y_test1[i] != 0:
+                temp = X_test1.values[i].copy()
+                plan = plans.iloc[i, :].values
+                rec = recs[i]
+                #                 print("plan",plan)
+                #                 print('actual',actual)
+                #                 print('id1',plan[0][0])
+                score.append(overlap(plan, actual))
+                size.append(size_interval(plan))
+                score2.append(overlap(plan, X_test1.values[i]))
+                tp, tn, fp, fn = abcd(temp, plan, actual, rec)
+                matrix.append([tp, tn, fp, fn])
+                break
+    print(name[0])
+    print('>>>')
+    print('>>>')
+    print('>>>')
+    return score, size, score2, matrix
+
+
+def xtree_commit(name):
+    start = time.time()
+    df1 = prepareCommitData(name[0])
+    df2 = prepareCommitData(name[1])
+    df3 = prepareCommitData(name[2])
+
+    df11 = df1.iloc[:, 2:]
+    df22 = df2.iloc[:, 2:]
+    df33 = df3.iloc[:, 2:]
+
+    df1n = norm(df11, df11)
+    df2n = norm(df22, df22)
+    df3n = norm(df22, df33)
+
+    X_train1 = df1n.iloc[:, :-1]
+    y_train1 = df1n.iloc[:, -1]
+    X_test1 = df2n.iloc[:, :-1]
+    y_test1 = df2n.iloc[:, -1]
+    X_test2 = df3n.iloc[:, :-1]
+    y_test2 = df3n.iloc[:, -1]
+
+    X_test = pd.concat([X_test1, y_test1], axis=1, ignore_index=True)
+    print(df1.columns)
+    X_test.columns = df1.columns[2:]
+
+    xtree_arplan = XTREE(strategy="closest", alpha=0.95, support_min=int(X_train1.shape[0] / 20))
+    xtree_arplan = xtree_arplan.fit(X_train1)
+    patched_xtree = xtree_arplan.predict(X_test)
+    print("Runtime for Xtree:", time.time() - start)
+    XTREE.pretty_print(xtree_arplan)
+    overlap_scores = []
+    bcs = []
+    size = []
+    score2 = []
+    matrix = []
+    for i in range(0, X_test1.shape[0]):
+        for j in range(0, X_test2.shape[0]):
+            if df3.iloc[j, 0] == df2.iloc[i, 0] and y_test1[i] != 0:
+                temp = X_test1.values[i].copy()
+                plan = patched_xtree.iloc[i, :-1]
+                rec = [0 for n in range(11)]
+                for k in range(11):
+                    if not isinstance(plan[k], float):
+                        if plan[k][0] != plan[k][1]:
+                            rec[k] = 1
+
+                actual = X_test2.iloc[j, :]
+                overlap_scores.append(overlap1(plan, plan, actual))
+                score2.append(overlap(plan, X_test1.values[i]))
+                size.append(size_interval(plan))
+                tp, tn, fp, fn = abcd(temp, plan, actual, rec)
+                matrix.append([tp, tn, fp, fn])
+                break
+    return overlap_scores, size, score2, matrix
+
+
+def planner_commit(name, par, explainer=None, smote=False, small=0.05, act=False):
+    # classic LIME
+    start_time = time.time()
+    files = [name[0], name[1], name[2]]
+    freq = [0] * 11
+    deltas = []
+    for j in range(0, len(files) - 2):
+        df1 = prepareCommitData(files[j]).iloc[:, 2:]
+        df2 = prepareCommitData(files[j + 1]).iloc[:, 2:]
+        for i in range(1, 12):
+            col1 = df1.iloc[:, i]
+            col2 = df2.iloc[:, i]
+            deltas.append(hedge(col1, col2))
+    deltas = sorted(range(len(deltas)), key=lambda k: deltas[k], reverse=True)
+
+    actionable = []
+    for i in range(0, len(deltas)):
+        if i in deltas[0:5]:
+            actionable.append(1)
+        else:
+            actionable.append(0)
+    df1 = prepareCommitData(name[0])
+    df2 = prepareCommitData(name[1])
+    df3 = prepareCommitData(name[2])
+
+    df11 = df1.iloc[:, 2:]
+    df22 = df2.iloc[:, 2:]
+    df33 = df3.iloc[:, 2:]
+
+    df1n = norm(df11, df11)
+    df2n = norm(df22, df22)
+    df3n = norm(df22, df33)
+
+    X_train1 = df1n.iloc[:, :-1]
+    y_train1 = df1n.iloc[:, -1]
+    X_test1 = df2n.iloc[:, :-1]
+    y_test1 = df2n.iloc[:, -1]
+    X_test2 = df3n.iloc[:, :-1]
+    y_test2 = df3n.iloc[:, -1]
+
+    score = []
+    bugchange = []
+    size = []
+    score2 = []
+    records = []
+    matrix = []
+    par = 11
+    clf1 = RandomForestClassifier(n_estimators=100, max_depth=20, min_samples_split=10, n_jobs=-1)
+    #     clf1 =  MLPClassifier(hidden_layer_sizes=[10],max_iter=2000,early_stopping=False,learning_rate='adaptive')
+    if smote:
+        sm = SMOTE()
+        X_train1_s, y_train1_s = sm.fit_resample(X_train1, y_train1)
+        clf1.fit(X_train1_s, y_train1_s)
+        explainer = lime.lime_tabular.LimeTabularExplainer(training_data=X_train1_s.values,
+                                                           training_labels=y_train1_s.values,
+                                                           feature_names=df11.columns,
+                                                           discretizer='entropy', feature_selection='lasso_path',
+                                                           mode='classification')
+    else:
+        clf1.fit(X_train1, y_train1)
+        explainer = lime.lime_tabular.LimeTabularExplainer(training_data=X_train1.values, training_labels=y_train1,
+                                                           feature_names=df11.columns,
+                                                           discretizer='entropy', feature_selection='lasso_path',
+                                                           mode='classification')
+    for i in range(0, len(y_test1)):
+        for j in range(0, len(y_test2)):
+            actual = X_test2.values[j]
+            if df3.iloc[j, 0] == df2.iloc[i, 0] and y_test1[i] != 0:
+
+                if True:
+                    ins = explainer.explain_instance(data_row=X_test1.values[i], predict_fn=clf1.predict_proba,
+                                                     num_features=11,
+                                                     num_samples=5000)
+                    ind = ins.local_exp[1]
+                    temp = X_test1.values[i].copy()
+                    if act:
+                        tem, plan, rec = flip(temp, ins.as_list(label=1), ind, clf1, df1n.columns, par,
+                                              actionable=actionable)
+                    else:
+                        tem, plan, rec = flip(temp, ins.as_list(label=1), ind, clf1, df1n.columns, par, actionable=None)
+                    score.append(overlap(plan, actual))
+                    size.append(size_interval(plan))
+                    score2.append(overlap(plan, temp))
+                    records.append(rec)
+                    tp, tn, fp, fn = abcd(temp, plan, actual, rec)
+                    matrix.append([tp, tn, fp, fn])
+                break
+    print("Runtime:", time.time() - start_time)
+    print(name[0], par)
+    print('>>>')
+    print('>>>')
+    print('>>>')
+    return score, size, score2, records, matrix

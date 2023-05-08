@@ -16,8 +16,19 @@ def list2dataframe(lst):
     return pd.DataFrame(lst)
 
 
-def prepareData(fname):
+def prepareCommitData(fname):
     # file = fname
+    file = os.path.join("Data", fname)
+    df = pd.read_csv(file, sep=',')
+    new_columns = ['cbo','lcom5','wmc','rfc','dit','noc','npm','avg_cc','max_cc','rfc.1','amc','loc']
+    df.rename(columns=dict(zip(df.columns[2:-1], new_columns)), inplace=True)
+    df.drop(columns=['rfc.1'],inplace=True)
+
+    return df
+
+
+def prepareData(fname):
+    # file = name
     file = os.path.join("Data", fname)
     df = pd.read_csv(file, sep=',')
     cols = list(df.columns)
@@ -138,6 +149,7 @@ def get_index(name):
     feature = ['cbm', 'lcom3', 'rfc', 'max_cc', 'cbo', 'moa', 'avg_cc', 'noc', 'ce',
                'npm', 'ca', 'mfa', 'lcom', 'amc', 'cam', 'dam', 'ic', 'wmc', 'loc',
                'dit']
+    # feature = ['cbo','lcom5','wmc','rfc','dit','noc','npm','avg_cc','max_cc','amc','loc']
     for i in range(len(feature)):
         if name == feature[i]:
             return i
@@ -154,7 +166,8 @@ def merge_plan_with_origin(plan, test):
     return plan
 
 
-def flip(data_row, local_exp, ind, clf, cols, n_feature=5, actionable=None):
+def flip(data_row, local_exp, ind, clf, cols, n_feature=5, par=20,actionable=None):
+
     counter = 0
     rejected = 0
     cache = []
@@ -172,9 +185,9 @@ def flip(data_row, local_exp, ind, clf, cols, n_feature=5, actionable=None):
             cnt.append(i)
     #         if ind[i][1]>0:
     #             cnt.append(i)
-    record = [0 for n in range(20)]
+    record = [0 for n in range(par)]
     tem = data_row.copy()
-    result = [[0 for m in range(2)] for n in range(20)]
+    result = [[0 for m in range(2)] for n in range(par)]
     for j in range(0, len(local_exp)):
         act = True
         index = get_index(cols[cache[j][0]])
@@ -266,7 +279,7 @@ def overlap(plan, actual):  # Jaccard similarity function
     cnt = 20
     right = 0
     # print(plan)
-    for i in range(0, len(plan)):
+    for i in range(0, 20):
         if isinstance(plan[i], float):
             if np.round(actual[i], 4) == np.round(plan[i], 4):
                 right += 1
@@ -293,8 +306,7 @@ def similar(ins):
 def overlap1(orig, plan, actual):  # Jaccard similarity function
     cnt = 20
     right = 0
-    # print(plan)
-    for i in range(0, len(plan)):
+    for i in range(0, cnt):
         if isinstance(plan[i], list):
             if actual[i] >= plan[i][0] and actual[i] <= plan[i][1]:
                 right += 1
