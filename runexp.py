@@ -10,7 +10,7 @@ import warnings
 warnings.simplefilter("ignore")
 import matplotlib.pyplot as plt
 
-commit = False
+commit = True
 
 
 def main():
@@ -32,7 +32,7 @@ def main():
         old, new = [], []
         for par in paras:
             for name in fnames:
-                o, n = historical_logs_commits(name, 11, explainer, smote=True, small=.03, act=par)
+                o, n = historical_logs_commits(name, 11, explainer, smote=True, small=.03, act=par,commit=commit)
                 old.append(o)
                 new.append(n)
         everything = []
@@ -53,7 +53,7 @@ def main():
                 te_ary = te.fit(itemsets).transform(itemsets, sparse=True)
                 df = pd.DataFrame.sparse.from_spmatrix(te_ary, columns=te.columns_)
                 rules = apriori(df, min_support=0.001, max_len=5, use_colnames=True)
-                score, size, score_2, rec, mat = TL_commits(name, rules, smote=True, act=par)
+                score, size, score_2, rec, mat = TL_commits(name, rules, smote=True, act=par,commit=commit)
                 scores_t.append(score)
                 size_t.append(size)
                 score_2t.append(score_2)
@@ -114,7 +114,8 @@ def main():
         cm_f = []
         for par in paras:
             for name in fnames:
-                score, size, score_2, rec, matrix = planner_commit(name, 11, explainer, smote=True, small=.03, act=par)
+                score, size, score_2, rec, matrix = planner_commit(name, 11, explainer, smote=True, small=.03, act=par,
+                                                                   commit=commit)
                 scores_f.append(score)
                 size_f.append(size)
                 score_2f.append(score_2)

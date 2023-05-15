@@ -1068,7 +1068,7 @@ def historical_logs(name, par, explainer=None, smote=False, small=0.05, act=Fals
     return old_change, new_change
 
 
-def historical_logs_commits(name, par, explainer=None, smote=False, small=0.05, act=False):
+def historical_logs_commits(name, par, explainer=None, smote=False, small=0.05, act=False,commit=False):
     start_time = time.time()
     files = [name[0], name[1], name[2]]
     freq = [0] * 11
@@ -1138,10 +1138,10 @@ def historical_logs_commits(name, par, explainer=None, smote=False, small=0.05, 
                 temp = X_test1.values[i].copy()
                 if act:
                     tem, plan, rec = flip(temp, ins.as_list(label=1), ind, clf1, df1n.columns, 0, par=11,
-                                          actionable=actionable)
+                                          actionable=actionable,commit=commit)
                 else:
                     tem, plan, rec = flip(temp, ins.as_list(label=1), ind, clf1, df1n.columns, 0, par=11,
-                                          actionable=None)
+                                          actionable=None,commit=commit)
                 o = track1(plan, temp)
                 n = track1(plan, actual)
                 old_change.append(o)
@@ -1156,7 +1156,8 @@ def historical_logs_commits(name, par, explainer=None, smote=False, small=0.05, 
     return old_change, new_change
 
 
-def TL_commits(name, rules, smote=False, act=False):
+def TL_commits(name, rules, smote=False, act=False,commit=False):
+    print(commit)
     start_time = time.time()
     files = [name[0], name[1], name[2]]
     freq = [0] * 11
@@ -1238,10 +1239,10 @@ def TL_commits(name, rules, smote=False, act=False):
                     if act:
 
                         tem, plan, rec = flip(temp, ins.as_list(label=1), ind, clf1, df1n.columns, par,
-                                              par=12, actionable=actionable)
+                                              par=12, actionable=actionable,commit=commit)
                     else:
                         tem, plan, rec = flip(temp, ins.as_list(label=1), ind, clf1, df1n.columns, par,
-                                              par=12, actionable=None)
+                                              par=12, actionable=None,commit=commit)
                     if act:
                         if rec in seen_id:
                             supported_plan_id = seen[seen_id.index(rec)]
@@ -1478,7 +1479,7 @@ def xtree_commit(name):
     return overlap_scores, size, score2, matrix
 
 
-def planner_commit(name, par, explainer=None, smote=False, small=0.05, act=False):
+def planner_commit(name, par, explainer=None, smote=False, small=0.05, act=False,commit=False):
     # classic LIME
     start_time = time.time()
     files = [name[0], name[1], name[2]]
@@ -1555,9 +1556,10 @@ def planner_commit(name, par, explainer=None, smote=False, small=0.05, act=False
                     temp = X_test1.values[i].copy()
                     if act:
                         tem, plan, rec = flip(temp, ins.as_list(label=1), ind, clf1, df1n.columns, par,
-                                              actionable=actionable)
+                                              actionable=actionable,commit=commit)
                     else:
-                        tem, plan, rec = flip(temp, ins.as_list(label=1), ind, clf1, df1n.columns, par, actionable=None)
+                        tem, plan, rec = flip(temp, ins.as_list(label=1), ind, clf1, df1n.columns, par, 
+                                              actionable=None,commit=commit)
                     score.append(overlap(plan, actual))
                     size.append(size_interval(plan))
                     score2.append(overlap(plan, temp))

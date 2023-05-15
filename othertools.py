@@ -145,11 +145,15 @@ def translate(sentence, name):
     return flag, result
 
 
-def get_index(name):
-    feature = ['cbm', 'lcom3', 'rfc', 'max_cc', 'cbo', 'moa', 'avg_cc', 'noc', 'ce',
-               'npm', 'ca', 'mfa', 'lcom', 'amc', 'cam', 'dam', 'ic', 'wmc', 'loc',
-               'dit']
-    # feature = ['cbo','lcom5','wmc','rfc','dit','noc','npm','avg_cc','max_cc','amc','loc']
+def get_index(name, commit=False):
+
+    if commit:
+        feature = ['cbo','lcom5','wmc','rfc','dit','noc','npm','avg_cc','max_cc','amc','loc']
+    else:
+        feature = ['cbm', 'lcom3', 'rfc', 'max_cc', 'cbo', 'moa', 'avg_cc', 'noc', 'ce',
+            'npm', 'ca', 'mfa', 'lcom', 'amc', 'cam', 'dam', 'ic', 'wmc', 'loc',
+            'dit']
+        
     for i in range(len(feature)):
         if name == feature[i]:
             return i
@@ -166,7 +170,7 @@ def merge_plan_with_origin(plan, test):
     return plan
 
 
-def flip(data_row, local_exp, ind, clf, cols, n_feature=5, par=20,actionable=None):
+def flip(data_row, local_exp, ind, clf, cols, n_feature=5, par=20,actionable=None, commit=False):
 
     counter = 0
     rejected = 0
@@ -190,7 +194,7 @@ def flip(data_row, local_exp, ind, clf, cols, n_feature=5, par=20,actionable=Non
     result = [[0 for m in range(2)] for n in range(par)]
     for j in range(0, len(local_exp)):
         act = True
-        index = get_index(cols[cache[j][0]])
+        index = get_index(cols[cache[j][0]],commit=commit)
         if actionable:
             if actionable[index] == 0:
                 act = False
@@ -202,24 +206,12 @@ def flip(data_row, local_exp, ind, clf, cols, n_feature=5, par=20,actionable=Non
             else:
                 result[cache[j][0]][0], result[cache[j][0]][1] = tem[index], 1
                 record[index] = 1
-            #             if (l+r)/2<0.5:
-            #                 if r+r-l<=1:
-            #                     result[cache[j][0]][0],result[cache[j][0]][1] = r,r+(r-l)
-            #                 else:
-            #                     result[cache[j][0]][0],result[cache[j][0]][1] = r,1
-            #             else:
-            #                 if l-(r-l)>=0:
-            #                     result[cache[j][0]][0],result[cache[j][0]][1] = l-(r-l),l
-            #                 else:
-            #                     result[cache[j][0]][0],result[cache[j][0]][1] = 0,l
-            #             tem[cache[j][0]] = (result[cache[j][0]][0]+result[cache[j][0]][1])/2
             counter += 1
         else:
             if act:
                 result[cache[j][0]][0], result[cache[j][0]][1] = tem[index] - 0.005, tem[index] + 0.005
             else:
                 result[cache[j][0]][0], result[cache[j][0]][1] = tem[index] - 0.05, tem[index] + 0.05
-    #             tem[index]-0.05,tem[index]+0.05
     return tem, result, record
 
 
