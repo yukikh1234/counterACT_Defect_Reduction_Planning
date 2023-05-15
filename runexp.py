@@ -24,6 +24,19 @@ def main():
 
         ]
 
+            # CF planner
+        scores_cf, bcs_cf = [], []
+        size_cf, score_2cf = [], []
+        records2_cf = []
+        con_matrix1_cf = []
+        for name in fnames:
+            score, size, score_2, rec, mat = CF_commit(name)
+            scores_cf.append(score)
+            size_cf.append(size)
+            score_2cf.append(score_2)
+            records2_cf.append(rec)
+            con_matrix1_cf.append(mat)
+
         # TimeLIME planner
         paras = [True]
         explainer = None

@@ -1573,3 +1573,167 @@ def planner_commit(name, par, explainer=None, smote=False, small=0.05, act=False
     print('>>>')
     print('>>>')
     return score, size, score2, records, matrix
+
+def CF_commit(name, number_act=5):
+    start_time = time.time()
+    files = [name[0], name[1], name[2]]
+    freq = [0] * 20
+    deltas = []
+    score = []
+    size = []
+    score2 = []
+    records = []
+    matrix = []
+    bugchange = []
+
+    for j in range(0, len(files) - 2):
+        df1 = prepareCommitData(files[j]).iloc[:, 2:]
+        df2 = prepareCommitData(files[j + 1]).iloc[:, 2:]
+        for i in range(1, 21):
+            col1 = df1.iloc[:, i]
+            col2 = df2.iloc[:, i]
+            deltas.append(hedge(col1, col2))
+    deltas = sorted(range(len(deltas)), key=lambda k: deltas[k], reverse=True)
+
+    actionable = []
+    for i in range(0, len(deltas)):
+        if i in deltas[0:number_act]:
+            actionable.append(1)
+        else:
+            actionable.append(0)
+
+    actionable_set_names = [list(df1.columns)[1:-1][i] for i in range(len(df1.columns[1:-1])) if actionable[i] == 1]
+
+    df1 = prepareCommitData(name[0])
+    df2 = prepareCommitData(name[1])
+    df3 = prepareCommitData(name[2])
+
+
+    df11 = df1.iloc[:, 2:]
+    df22 = df2.iloc[:, 2:]
+    df33 = df3.iloc[:, 2:]
+
+    df1n = norm(df11, df11)
+    df2n = norm(df22, df22)
+    df3n = norm(df22, df33)
+
+    X_train1 = df1n.iloc[:, :-1]
+    y_train1 = df1n.iloc[:, -1]
+    X_test1 = df2n.iloc[:, :-1]
+    y_test1 = df2n.iloc[:, -1]
+    X_test2 = df3n.iloc[:, :-1]
+    y_test2 = df3n.iloc[:, -1]
+
+    # Learn the action rules
+    # First we descritize the data using the Entropy algorithm
+    X_train1_to_disc = X_train1.copy()
+    # X_train1_to_disc['version'] = '2.4'
+    X_test1_to_disc = X_test1.copy()
+    # X_test1_to_disc['version'] = '2.5'
+    # train = pd.concat([X_train1_to_disc, X_test1_to_disc]).reset_index(drop=True)
+    # versions = train['version']
+    # train = train.drop(columns=['version'])
+    # defects = pd.concat([y_train1, y_test1]).reset_index(drop=True)
+
+    desc = lime.discretize.EntropyDiscretizer(X_train1_to_disc.values, categorical_features=[], labels=y_train1.values,
+                                              feature_names=X_train1.columns)
+    names = desc.names
+
+    mapping_tuple = {}
+    for i in range(X_train1.columns.shape[0]):
+        col = X_train1.columns[i]
+        tuples = {}
+        for index, value in enumerate(names[i]):
+            left, right = translate1(value, col)
+            tuples[index] = (left - 0.005, right + 0.005)
+
+        mapping_tuple[col] = tuples
+
+    discretize_train_data = desc.discretize(X_train1_to_disc.values)
+    discretize_train_data = pd.DataFrame(discretize_train_data, columns=X_train1_to_disc.columns)
+
+    for key, values in mapping_tuple.items():
+        discretize_train_data[key] = discretize_train_data[key].map(values)
+        
+
+    discretize_test_data = desc.discretize(X_test1_to_disc.values)
+    discretize_test_data = pd.DataFrame(discretize_test_data, columns=X_train1_to_disc.columns)
+
+    for key, values in mapping_tuple.items():
+        discretize_test_data[key] = discretize_test_data[key].map(values)
+
+    discretize_train_data['bug'] = y_train1
+    actionRulesDiscovery = ActionRulesDiscovery()
+    actionRulesDiscovery.load_pandas(discretize_train_data)
+
+    print('-------- Learn Action rules start ----------')
+    actionRulesDiscovery.fit(stable_attributes=[],
+                             flexible_attributes=actionable_set_names,
+                             consequent="bug",
+                             conf=40,
+                             supp=1,
+                             desired_classes=["0"],
+                             is_nan=False,
+                             is_reduction=True,
+                             min_stable_attributes=0,
+                             min_flexible_attributes=1,
+                             max_stable_attributes=0,
+                             max_flexible_attributes=5)
+
+    X_test1 = discretize_test_data.copy()
+
+    for i in tqdm(range(0, len(y_test1))):
+        for j in range(0, len(y_test2)):
+            actual = X_test2.iloc[j].to_frame().T
+            if df3.iloc[j, 0] == df2.iloc[i, 0] and y_test1[i] != 0:
+                if True:
+                    defect = X_test1.iloc[i].to_frame().T
+                    try:
+                        plan = actionRulesDiscovery.predict(defect)
+                    except:
+                        continue
+                    # if plan.empty:
+                    #     continue
+
+                    recommended_plan = plan[plan['support after'] == plan['support after'].max()]
+                    recommended_plan = recommended_plan.filter(regex='recommended')
+
+                    columns = [s.replace('-recommended', "") for s in recommended_plan.columns]
+
+                    tmp_recommended = recommended_plan[
+                        [col for col in recommended_plan.columns if 'recommended' in col]].dropna(axis=1)
+
+                    rec_col = [s.replace('-recommended', "") for s in tmp_recommended.columns]
+
+                    # Impute the missing data,if the value is Nan it mean you don't change it so with fill it with the original value
+                    for col in columns:
+                        try:
+                            recommended_plan['{}-recommended'.format(col)] = recommended_plan[
+                                '{}-recommended'.format(col)].apply(
+                                lambda x: defect[col].values[0] if x is np.nan else ast.literal_eval(x))
+                        except:
+                            continue
+
+                    # ADD the not changed metrics to the plan to compute the overlap
+                    recommended_plan.columns = columns
+                    recommended_plan = merge_plan_with_origin(recommended_plan, defect)
+                    recommended_plan = recommended_plan.reindex(columns=actual.columns.to_list())
+
+                    max_overlap, list_overlap = overlapCF(recommended_plan, actual)
+                    rec = [1 if item in rec_col else 0 for item in defect.columns]
+                    size.append(size_interval([ast.literal_eval(x) for x in tmp_recommended.values[0]]))
+                    score2.append(len([n for n in rec if n != 0]))
+                    records.append(rec)
+                    tp, tn, fp, fn = abcd(defect.values[0], recommended_plan.values[0], actual.values[0], actionable)
+                    matrix.append([tp, tn, fp, fn])
+
+
+                    score.append(max_overlap)
+    print("Runtime:", time.time() - start_time)
+    print(name[0])
+    print('>>>')
+    print('>>>')
+    print('>>>')
+    print(np.median(score))
+    return score, size, score2, records, matrix
+
