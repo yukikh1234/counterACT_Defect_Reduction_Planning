@@ -42,8 +42,7 @@ def main():
 
     # plt.ylim(-11,130)
     plt.xticks(np.arange(N), ['jedit', 'camel1', 'camel2', 'log4j', 'xalan', 'ant',
-                'velocity', 'poi', 'synapse','xlan\nant','log4j\nant','camel\nlog4j',
-                'velocity\nsynapse', 'jedit\npoi', 'synapse\nxalan'], fontsize=12)
+                'velocity', 'poi', 'synapse'], fontsize=12)
     plt.yticks([0, 2, 4, 6, 8, 10, 12],fontsize=12)
     plt.subplots_adjust(bottom=0.2)
     plt.grid(axis='y')

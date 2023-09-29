@@ -1,7 +1,8 @@
-sklearn
+scikit-learn
 pandas
 numpy
 matplotlib
 scipy
 imblearn
 lime
+actionrules-lukassykora

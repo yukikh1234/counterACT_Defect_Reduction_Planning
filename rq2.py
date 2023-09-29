@@ -16,13 +16,7 @@ def main():
         ['ant-1.5.csv', 'ant-1.6.csv', 'ant-1.7.csv'],
         ['velocity-1.4.csv', 'velocity-1.5.csv', 'velocity-1.6.csv'],
         ['poi-1.5.csv', 'poi-2.5.csv', 'poi-3.0.csv'],
-        ['synapse-1.0.csv', 'synapse-1.1.csv', 'synapse-1.2.csv'],
-        ['xalan-all.csv', 'ant-1.6.csv', 'ant-1.7.csv'],
-        ['log4j-all.csv', 'ant-1.6.csv', 'ant-1.7.csv'],
-        ['camel-all.csv', 'log4j-1.1.csv', 'log4j-1.2.csv'],
-        ['velocity-all.csv', 'synapse-1.1.csv', 'synapse-1.1.csv'],
-        ['jedit-all.csv', 'poi-1.5.csv', 'poi-1.5.csv'],
-        ['synapse-all.csv', 'xalan-2.5.csv', 'xalan-2.5.csv']
+        ['synapse-1.0.csv', 'synapse-1.1.csv', 'synapse-1.2.csv']
 
         ]
 
@@ -87,8 +81,7 @@ def main():
     list2 = [bcs_t,bcs_f,bcs_x,bcs_alve,bcs_shat,bcs_oliv,bcs_rw,bcs_CF]
     names = ['TimeLIME','LIME','XTREE','Alves','Shatnawi','Oliveira','Random','CF']
     projects = ['jedit', 'camel1', 'camel2', 'log4j', 'xalan', 'ant',
-                'velocity', 'poi', 'synapse','xlan\nant','log4j\nant','camel\nlog4j',
-                'velocity\nsynapse', 'jedit\npoi', 'synapse\nxalan']
+                'velocity', 'poi', 'synapse']
     # projects = ['xalan-ant','log4j-ant','camel-log4j']
 
 
@@ -116,8 +109,7 @@ if __name__ == "__main__":
     # projects = ['kafka', 'activecluster', 'nifi', 'zookeper', 'phoenix']
     names = np.array(['TimeLIME', 'LIME', 'Shatnawi', 'Alves', 'Random', 'Oliveira', 'XTREE', 'CF'])
     projects = ['jedit', 'camel1', 'camel2', 'log4j', 'xalan', 'ant',
-                'velocity', 'poi', 'synapse','xlan\nant','log4j\nant','camel\nlog4j',
-                'velocity\nsynapse', 'jedit\npoi', 'synapse\nxalan']
+                'velocity', 'poi', 'synapse']
 
     results_overlap = pd.DataFrame(results_overlap)
     results_overlap.columns = names

@@ -2,7 +2,6 @@ import pandas as pd
 
 from planner import *
 from othertools import *
-import scikit_posthocs as sp
 import seaborn as sns
 import matplotlib.pyplot as plt
 
@@ -64,8 +63,7 @@ def main():
         list1 = [scores_t, scores_f, scores_x, scores_alve, scores_Shat, scores_oliv, scores_rw, scores_CF]
         names = np.array(['TimeLIME', 'LIME', 'XTREE', 'Alves', 'Shatnawi', 'Oliveira', 'Random', 'CounterACT'])
         projects = ['jedit', 'camel1', 'camel2', 'log4j', 'xalan', 'ant',
-                    'velocity', 'poi', 'synapse', 'xlan\nant', 'log4j\nant', 'camel\nlog4j',
-                    'velocity\nsynapse', 'jedit\npoi', 'synapse\nxalan']
+                    'velocity', 'poi', 'synapse']
 
     results_recalls = [projects]
     results_precisions = [projects]
@@ -140,20 +138,20 @@ if __name__ == "__main__":
         results_f1_score.columns = results_f1_score.iloc[0]
         results_f1_score = results_f1_score[1:].set_index(names).T
 
-        results_f1_score = results_f1_score.drop(results_f1_score.index[-6:], axis=0)
+        results_f1_score = results_f1_score.drop(results_f1_score.index[-1:], axis=0)
 
-        print(results_f1_score)
         results_recalls = pd.DataFrame(recall)
         results_recalls.columns = results_recalls.iloc[0]
         results_recalls = results_recalls[1:].set_index(names).T
 
-        results_recalls = results_recalls.drop(results_recalls.index[-6:], axis=0)
+        results_recalls = results_recalls.drop(results_recalls.index[-1:], axis=0)
 
         results_precision = pd.DataFrame(precision)
         results_precision.columns = results_precision.iloc[0]
         results_precision = results_precision[1:].set_index(names).T
-        results_precision = results_precision.drop(results_precision.index[-6:], axis=0)
+        results_precision = results_precision.drop(results_precision.index[-1:], axis=0)
 
+    print(results_f1_score.mean())
     results_precision['Type'] = 'Precision'
     results_recalls['Type'] = 'Recall'
     results_f1_score['Type'] = 'F1_score'
@@ -180,7 +178,7 @@ if __name__ == "__main__":
 
 
     # show the plot
-    plt.savefig('precision_recall_score_commit.pdf', format='pdf')
+    plt.savefig('precision_recall_score_release.pdf', format='pdf')
 
     plt.show()
 

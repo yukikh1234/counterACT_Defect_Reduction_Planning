@@ -12,6 +12,7 @@ from tqdm import tqdm
 import ast
 
 from sklearn.preprocessing import MinMaxScaler
+from imblearn.over_sampling import SMOTE
 
 
 # print the full dataframe
@@ -225,7 +226,7 @@ def planner(name, par, explainer=None, smote=False, small=0.05, act=False):
     return score, bugchange, size, score2, records, matrix
 
 
-def CF(name, number_act=5):
+def CF(name, number_act=10):
     start_time = time.time()
     files = [name[0], name[1], name[2]]
     freq = [0] * 20
@@ -254,6 +255,7 @@ def CF(name, number_act=5):
             actionable.append(0)
 
     actionable_set_names = [list(df1.columns)[1:-1][i] for i in range(len(df1.columns[1:-1])) if actionable[i] == 1]
+    stable_set_name = [col for col in list(df1.columns)[1:-1] if col not in actionable_set_names]
 
     df1 = prepareData(name[0])
     df2 = prepareData(name[1])
@@ -288,6 +290,12 @@ def CF(name, number_act=5):
     train = train.drop(columns=['version'])
     defects = pd.concat([y_train1, y_test1]).reset_index(drop=True)
 
+    smote = SMOTE(random_state=42)
+    X_resampled, y_resampled = smote.fit_resample(train, defects)
+
+    x_train_resampled = pd.DataFrame(X_resampled, columns=train.columns)
+
+
     desc = lime.discretize.EntropyDiscretizer(train.values, categorical_features=[], labels=defects.values,
                                               feature_names=X_train1.columns)
     names = desc.names
@@ -302,6 +310,8 @@ def CF(name, number_act=5):
 
         mapping_tuple[col] = tuples
 
+
+    # Descritize the train data without augmentation
     discretize_train_data = desc.discretize(train.values)
     discretize_train_data = pd.DataFrame(discretize_train_data, columns=train.columns)
 
@@ -309,23 +319,67 @@ def CF(name, number_act=5):
         discretize_train_data[key] = discretize_train_data[key].map(values)
 
     discretize_train_data['bug'] = defects
+
+    # Descritize the augmented data
+    discretize_train_data_resampled = desc.discretize(x_train_resampled.values)
+    discretize_train_data_resampled = pd.DataFrame(discretize_train_data_resampled, columns=train.columns)
+
+    for key, values in mapping_tuple.items():
+        discretize_train_data_resampled[key] = discretize_train_data_resampled[key].map(values)
+
+    discretize_train_data_resampled['bug'] = y_resampled
+
+    # Apply action rule
     actionRulesDiscovery = ActionRulesDiscovery()
-    actionRulesDiscovery.load_pandas(discretize_train_data)
+    actionRulesDiscovery.load_pandas(discretize_train_data_resampled)
 
     print('-------- Learn Action rules start ----------')
-    actionRulesDiscovery.fit(stable_attributes=[],
+
+    actionRulesDiscovery.fit(stable_attributes=stable_set_name,
                              flexible_attributes=actionable_set_names,
                              consequent="bug",
-                             conf=40,
-                             supp=1,
+                             conf=55,
+                             supp=5,
                              desired_classes=["0"],
                              is_nan=False,
                              is_reduction=True,
-                             min_stable_attributes=0,
-                             min_flexible_attributes=1,
-                             max_stable_attributes=0,
-                             max_flexible_attributes=5)
+                             min_stable_attributes=1,
+                             min_flexible_attributes=1)
 
+    # Export the rules into a csv file
+    action_rules = actionRulesDiscovery.get_action_rules()
+    formatted_rules = list()
+    columns = [
+        "change_metric_(cause)",
+        "target_value_change_(consequence)",
+        'support',
+        'confidence',
+        'uplift'
+    ]
+
+    for rule in action_rules:
+        precedent = [ast.literal_eval(x[1][0]) for x in rule[0][1]]
+        antecedent = [ast.literal_eval(x[1][1]) for x in rule[0][1]]
+        columns_causes = [x[0] for x in rule[0][1]]
+
+        cause = ['{}: {}'.format(x[0], x[1]) for x in rule[0][1]]
+        consequence = '{}: {}'.format(rule[0][2][0], tuple(rule[0][2][1]))
+        support = 10*rule[1][2]
+        confidence = rule[2][2]
+        lift = rule[3]
+        formatted_rules.append([
+            cause,
+            consequence,
+            support,
+            confidence,
+            lift
+        ])
+
+    formatted_rules = pd.DataFrame(formatted_rules, columns=columns).sort_values('support',
+                                                                                 ascending=False).reset_index(drop=True)
+    formatted_rules.to_csv('rules/{}.csv'.format(name[0].split('-')[0]), index=False)
+
+    # evaluate the action rule mining model
     discretize_train_data['version'] = versions
     X_test1 = discretize_train_data[discretize_train_data['version'] == "2.5"].drop(
         columns=['bug', 'version']).reset_index(drop=True)
@@ -403,7 +457,7 @@ def TL(name, par, rules, smote=False, act=False):
 
     actionable = []
     for i in range(0, len(deltas)):
-        if i in deltas[0:5]:
+        if i in deltas[0:10]:
             actionable.append(1)
         else:
             actionable.append(0)
@@ -995,7 +1049,7 @@ def historical_logs(name, par, explainer=None, smote=False, small=0.05, act=Fals
 
     actionable = []
     for i in range(0, len(deltas)):
-        if i in deltas[0:5]:
+        if i in deltas[0:10]:
             actionable.append(1)
         else:
             actionable.append(0)
@@ -1068,7 +1122,7 @@ def historical_logs(name, par, explainer=None, smote=False, small=0.05, act=Fals
     return old_change, new_change
 
 
-def historical_logs_commits(name, par, explainer=None, smote=False, small=0.05, act=False):
+def historical_logs_commits(name, par, explainer=None, smote=False, small=0.05, act=False,commit=False):
     start_time = time.time()
     files = [name[0], name[1], name[2]]
     freq = [0] * 11
@@ -1084,7 +1138,7 @@ def historical_logs_commits(name, par, explainer=None, smote=False, small=0.05, 
 
     actionable = []
     for i in range(0, len(deltas)):
-        if i in deltas[0:5]:
+        if i in deltas[0:10]:
             actionable.append(1)
         else:
             actionable.append(0)
@@ -1138,10 +1192,10 @@ def historical_logs_commits(name, par, explainer=None, smote=False, small=0.05, 
                 temp = X_test1.values[i].copy()
                 if act:
                     tem, plan, rec = flip(temp, ins.as_list(label=1), ind, clf1, df1n.columns, 0, par=11,
-                                          actionable=actionable)
+                                          actionable=actionable,commit=commit)
                 else:
                     tem, plan, rec = flip(temp, ins.as_list(label=1), ind, clf1, df1n.columns, 0, par=11,
-                                          actionable=None)
+                                          actionable=None,commit=commit)
                 o = track1(plan, temp)
                 n = track1(plan, actual)
                 old_change.append(o)
@@ -1156,7 +1210,8 @@ def historical_logs_commits(name, par, explainer=None, smote=False, small=0.05, 
     return old_change, new_change
 
 
-def TL_commits(name, rules, smote=False, act=False):
+def TL_commits(name, rules, smote=False, act=False,commit=False):
+    print(commit)
     start_time = time.time()
     files = [name[0], name[1], name[2]]
     freq = [0] * 11
@@ -1172,7 +1227,7 @@ def TL_commits(name, rules, smote=False, act=False):
 
     actionable = []
     for i in range(0, len(deltas)):
-        if i in deltas[0:5]:
+        if i in deltas[0:10]:
             actionable.append(1)
         else:
             actionable.append(0)
@@ -1238,10 +1293,10 @@ def TL_commits(name, rules, smote=False, act=False):
                     if act:
 
                         tem, plan, rec = flip(temp, ins.as_list(label=1), ind, clf1, df1n.columns, par,
-                                              par=12, actionable=actionable)
+                                              par=12, actionable=actionable,commit=commit)
                     else:
                         tem, plan, rec = flip(temp, ins.as_list(label=1), ind, clf1, df1n.columns, par,
-                                              par=12, actionable=None)
+                                              par=12, actionable=None,commit=commit)
                     if act:
                         if rec in seen_id:
                             supported_plan_id = seen[seen_id.index(rec)]
@@ -1478,7 +1533,7 @@ def xtree_commit(name):
     return overlap_scores, size, score2, matrix
 
 
-def planner_commit(name, par, explainer=None, smote=False, small=0.05, act=False):
+def planner_commit(name, par, explainer=None, smote=False, small=0.05, act=False,commit=False):
     # classic LIME
     start_time = time.time()
     files = [name[0], name[1], name[2]]
@@ -1495,7 +1550,7 @@ def planner_commit(name, par, explainer=None, smote=False, small=0.05, act=False
 
     actionable = []
     for i in range(0, len(deltas)):
-        if i in deltas[0:5]:
+        if i in deltas[0:10]:
             actionable.append(1)
         else:
             actionable.append(0)
@@ -1555,9 +1610,10 @@ def planner_commit(name, par, explainer=None, smote=False, small=0.05, act=False
                     temp = X_test1.values[i].copy()
                     if act:
                         tem, plan, rec = flip(temp, ins.as_list(label=1), ind, clf1, df1n.columns, par,
-                                              actionable=actionable)
+                                              actionable=actionable,commit=commit)
                     else:
-                        tem, plan, rec = flip(temp, ins.as_list(label=1), ind, clf1, df1n.columns, par, actionable=None)
+                        tem, plan, rec = flip(temp, ins.as_list(label=1), ind, clf1, df1n.columns, par, 
+                                              actionable=None,commit=commit)
                     score.append(overlap(plan, actual))
                     size.append(size_interval(plan))
                     score2.append(overlap(plan, temp))
@@ -1571,3 +1627,166 @@ def planner_commit(name, par, explainer=None, smote=False, small=0.05, act=False
     print('>>>')
     print('>>>')
     return score, size, score2, records, matrix
+
+def CF_commit(name, number_act=5):
+    start_time = time.time()
+    files = [name[0], name[1], name[2]]
+    freq = [0] * 20
+    deltas = []
+    score = []
+    size = []
+    score2 = []
+    records = []
+    matrix = []
+    bugchange = []
+
+    for j in range(0, len(files) - 2):
+        df1 = prepareCommitData(files[j]).iloc[:, 2:]
+        df2 = prepareCommitData(files[j + 1]).iloc[:, 2:]
+        for i in range(1, 21):
+            col1 = df1.iloc[:, i]
+            col2 = df2.iloc[:, i]
+            deltas.append(hedge(col1, col2))
+    deltas = sorted(range(len(deltas)), key=lambda k: deltas[k], reverse=True)
+
+    actionable = []
+    for i in range(0, len(deltas)):
+        if i in deltas[0:number_act]:
+            actionable.append(1)
+        else:
+            actionable.append(0)
+
+    actionable_set_names = [list(df1.columns)[1:-1][i] for i in range(len(df1.columns[1:-1])) if actionable[i] == 1]
+    stable_set_name = [col for col in list(df1.columns)[1:-1] if col not in actionable_set_names]
+
+    df1 = prepareCommitData(name[0])
+    df2 = prepareCommitData(name[1])
+    df3 = prepareCommitData(name[2])
+
+
+    df11 = df1.iloc[:, 2:]
+    df22 = df2.iloc[:, 2:]
+    df33 = df3.iloc[:, 2:]
+
+    df1n = norm(df11, df11)
+    df2n = norm(df22, df22)
+    df3n = norm(df22, df33)
+
+    X_train1 = df1n.iloc[:, :-1]
+    y_train1 = df1n.iloc[:, -1]
+    X_test1 = df2n.iloc[:, :-1]
+    y_test1 = df2n.iloc[:, -1]
+    X_test2 = df3n.iloc[:, :-1]
+    y_test2 = df3n.iloc[:, -1]
+
+    # Learn the action rules
+    # First we descritize the data using the Entropy algorithm
+    X_train1_to_disc = X_train1.copy()
+    # X_train1_to_disc['version'] = '2.4'
+    X_test1_to_disc = X_test1.copy()
+    # X_test1_to_disc['version'] = '2.5'
+    # train = pd.concat([X_train1_to_disc, X_test1_to_disc]).reset_index(drop=True)
+    # versions = train['version']
+    # train = train.drop(columns=['version'])
+    # defects = pd.concat([y_train1, y_test1]).reset_index(drop=True)
+
+    desc = lime.discretize.EntropyDiscretizer(X_train1_to_disc.values, categorical_features=[], labels=y_train1.values,
+                                              feature_names=X_train1.columns)
+    names = desc.names
+
+    mapping_tuple = {}
+    for i in range(X_train1.columns.shape[0]):
+        col = X_train1.columns[i]
+        tuples = {}
+        for index, value in enumerate(names[i]):
+            left, right = translate1(value, col)
+            tuples[index] = (left - 0.005, right + 0.005)
+
+        mapping_tuple[col] = tuples
+
+    discretize_train_data = desc.discretize(X_train1_to_disc.values)
+    discretize_train_data = pd.DataFrame(discretize_train_data, columns=X_train1_to_disc.columns)
+
+    for key, values in mapping_tuple.items():
+        discretize_train_data[key] = discretize_train_data[key].map(values)
+        
+
+    discretize_test_data = desc.discretize(X_test1_to_disc.values)
+    discretize_test_data = pd.DataFrame(discretize_test_data, columns=X_train1_to_disc.columns)
+
+    for key, values in mapping_tuple.items():
+        discretize_test_data[key] = discretize_test_data[key].map(values)
+
+    discretize_train_data['bug'] = y_train1
+    actionRulesDiscovery = ActionRulesDiscovery()
+    actionRulesDiscovery.load_pandas(discretize_train_data)
+
+    print('-------- Learn Action rules start ----------')
+    actionRulesDiscovery.fit(stable_attributes=stable_set_name,
+                             flexible_attributes=actionable_set_names,
+                             consequent="bug",
+                             conf=55,
+                             supp=5,
+                             desired_classes=["0"],
+                             is_nan=False,
+                             is_reduction=True,
+                             min_stable_attributes=1,
+                             min_flexible_attributes=1)
+
+    X_test1 = discretize_test_data.copy()
+
+    for i in tqdm(range(0, len(y_test1))):
+        for j in range(0, len(y_test2)):
+            actual = X_test2.iloc[j].to_frame().T
+            if df3.iloc[j, 0] == df2.iloc[i, 0] and y_test1[i] != 0:
+                if True:
+                    defect = X_test1.iloc[i].to_frame().T
+                    try:
+                        plan = actionRulesDiscovery.predict(defect)
+                    except:
+                        continue
+                    # if plan.empty:
+                    #     continue
+
+                    recommended_plan = plan[plan['support after'] == plan['support after'].max()]
+                    recommended_plan = recommended_plan.filter(regex='recommended')
+
+                    columns = [s.replace('-recommended', "") for s in recommended_plan.columns]
+
+                    tmp_recommended = recommended_plan[
+                        [col for col in recommended_plan.columns if 'recommended' in col]].dropna(axis=1)
+
+                    rec_col = [s.replace('-recommended', "") for s in tmp_recommended.columns]
+
+                    # Impute the missing data,if the value is Nan it mean you don't change it so with fill it with the original value
+                    for col in columns:
+                        try:
+                            recommended_plan['{}-recommended'.format(col)] = recommended_plan[
+                                '{}-recommended'.format(col)].apply(
+                                lambda x: defect[col].values[0] if x is np.nan else ast.literal_eval(x))
+                        except:
+                            continue
+
+                    # ADD the not changed metrics to the plan to compute the overlap
+                    recommended_plan.columns = columns
+                    recommended_plan = merge_plan_with_origin(recommended_plan, defect)
+                    recommended_plan = recommended_plan.reindex(columns=actual.columns.to_list())
+
+                    max_overlap, list_overlap = overlapCF(recommended_plan, actual)
+                    rec = [1 if item in rec_col else 0 for item in defect.columns]
+                    size.append(size_interval([ast.literal_eval(x) for x in tmp_recommended.values[0]]))
+                    score2.append(len([n for n in rec if n != 0]))
+                    records.append(rec)
+                    tp, tn, fp, fn = abcd(defect.values[0], recommended_plan.values[0], actual.values[0], actionable)
+                    matrix.append([tp, tn, fp, fn])
+
+
+                    score.append(max_overlap)
+    print("Runtime:", time.time() - start_time)
+    print(name[0])
+    print('>>>')
+    print('>>>')
+    print('>>>')
+    print(np.median(score))
+    return score, size, score2, records, matrix
+
