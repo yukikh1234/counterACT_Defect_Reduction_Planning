@@ -4,7 +4,7 @@
 
 To reproduce the experiments and obtain the results presented in our study, please follow these steps:
 
-1. **Run Experiment Script**: Execute the `runexp.py` script to perform the experiments. This process will generate and store all the resulting data in the `data` directory in CSV format.
+1. **Run Experiment Script**: Execute the `runexp.py` script to perform the experiments. This process will generate and store all the resulting data in the `results` directory in CSV format.
 
 2. **Research Questions (RQs) Analysis**: For each research question, execute the respective `rq1.py`, `rq2.py`, or `rq3.py` script. These scripts will compute and present the results for each RQ.
 
