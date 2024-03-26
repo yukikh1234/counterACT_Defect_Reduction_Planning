@@ -1790,3 +1790,187 @@ def CF_commit(name, number_act=5):
     print(np.median(score))
     return score, size, score2, records, matrix
 
+def ARM(name, number_act=10):
+    start_time = time.time()
+    files = [name[0], name[1], name[2]]
+    freq = [0] * 20
+    deltas = []
+    score = []
+    size = []
+    score2 = []
+    records = []
+    matrix = []
+    bugchange = []
+
+    for j in range(0, len(files) - 2):
+        df1 = prepareData(files[j])
+        df2 = prepareData(files[j + 1])
+        for i in range(1, 21):
+            col1 = df1.iloc[:, i]
+            col2 = df2.iloc[:, i]
+            deltas.append(hedge(col1, col2))
+    deltas = sorted(range(len(deltas)), key=lambda k: deltas[k], reverse=True)
+
+    actionable = []
+    for i in range(0, len(deltas)):
+        if i in deltas[0:number_act]:
+            actionable.append(1)
+        else:
+            actionable.append(0)
+
+    actionable_set_names = [list(df1.columns)[1:-1][i] for i in range(len(df1.columns[1:-1])) if actionable[i] == 1]
+    stable_set_name = [col for col in list(df1.columns)[1:-1] if col not in actionable_set_names]
+
+    df1 = prepareData(name[0])
+    df2 = prepareData(name[1])
+    df3 = prepareData(name[2])
+
+    bug1 = bugs(name[0])
+    bug2 = bugs(name[1])
+    bug3 = bugs(name[2])
+    df11 = df1.iloc[:, 1:]
+    df22 = df2.iloc[:, 1:]
+    df33 = df3.iloc[:, 1:]
+
+    df1n = df11.copy()
+    df2n = df22.copy()
+    df3n = df33.copy()
+
+    X_train1 = df1n.iloc[:, :-1]
+    y_train1 = df1n.iloc[:, -1]
+    X_test1 = df2n.iloc[:, :-1]
+    y_test1 = df2n.iloc[:, -1]
+    X_test2 = df3n.iloc[:, :-1]
+    y_test2 = df3n.iloc[:, -1]
+
+    # Learn the action rules
+    # First we descritize the data using the Entropy algorithm
+    X_train1_to_disc = X_train1.copy()
+    X_train1_to_disc['version'] = '2.4'
+    X_test1_to_disc = X_test1.copy()
+    X_test1_to_disc['version'] = '2.5'
+    train = pd.concat([X_train1_to_disc, X_test1_to_disc]).reset_index(drop=True)
+    versions = train['version']
+    train = train.drop(columns=['version'])
+    defects = pd.concat([y_train1, y_test1]).reset_index(drop=True)
+
+    smote = SMOTE(random_state=42)
+    X_resampled, y_resampled = smote.fit_resample(train, defects)
+
+    x_train_resampled = pd.DataFrame(X_resampled, columns=train.columns)
+
+
+    train['bug'] = defects
+
+    x_train_resampled['bug'] = y_resampled
+
+    # Apply action rule
+    actionRulesDiscovery = ActionRulesDiscovery()
+    actionRulesDiscovery.load_pandas(x_train_resampled)
+
+    print('-------- Learn Action rules start ----------')
+
+    actionRulesDiscovery.fit(stable_attributes=stable_set_name,
+                             flexible_attributes=actionable_set_names,
+                             consequent="bug",
+                             conf=55,
+                             supp=5,
+                             desired_classes=["0"],
+                             is_nan=False,
+                             is_reduction=True,
+                             min_stable_attributes=1,
+                             min_flexible_attributes=1)
+
+    # Export the rules into a csv file
+    action_rules = actionRulesDiscovery.get_action_rules()
+    formatted_rules = list()
+    columns = [
+        "change_metric_(cause)",
+        "target_value_change_(consequence)",
+        'support',
+        'confidence',
+        'uplift'
+    ]
+
+    for rule in action_rules:
+        precedent = [ast.literal_eval(x[1][0]) for x in rule[0][1]]
+        antecedent = [ast.literal_eval(x[1][1]) for x in rule[0][1]]
+        columns_causes = [x[0] for x in rule[0][1]]
+
+        cause = ['{}: {}'.format(x[0], x[1]) for x in rule[0][1]]
+        consequence = '{}: {}'.format(rule[0][2][0], tuple(rule[0][2][1]))
+        support = 10*rule[1][2]
+        confidence = rule[2][2]
+        lift = rule[3]
+        formatted_rules.append([
+            cause,
+            consequence,
+            support,
+            confidence,
+            lift
+        ])
+
+    formatted_rules = pd.DataFrame(formatted_rules, columns=columns).sort_values('support',
+                                                                                 ascending=False).reset_index(drop=True)
+    formatted_rules.to_csv('rules/{}.csv'.format(name[0].split('-')[0]), index=False)
+
+    # evaluate the action rule mining model
+    train['version'] = versions
+    X_test1 = train[train['version'] == "2.5"].drop(
+        columns=['bug', 'version']).reset_index(drop=True)
+
+    for i in tqdm(range(0, len(y_test1))):
+        for j in range(0, len(y_test2)):
+            actual = X_test2.iloc[j].to_frame().T
+            if df3.iloc[j, 0] == df2.iloc[i, 0] and y_test1[i] != 0:
+                if True:
+                    defect = X_test1.iloc[i].to_frame().T
+                    try:
+                        plan = actionRulesDiscovery.predict(defect)
+                    except:
+                        continue
+                    # if plan.empty:
+                    #     continue
+
+                    recommended_plan = plan[plan['support after'] == plan['support after'].max()]
+                    recommended_plan = recommended_plan.filter(regex='recommended')
+
+                    columns = [s.replace('-recommended', "") for s in recommended_plan.columns]
+
+                    tmp_recommended = recommended_plan[
+                        [col for col in recommended_plan.columns if 'recommended' in col]].dropna(axis=1)
+
+                    rec_col = [s.replace('-recommended', "") for s in tmp_recommended.columns]
+
+                    # Impute the missing data,if the value is Nan it mean you don't change it so with fill it with the original value
+                    for col in columns:
+                        try:
+                            recommended_plan['{}-recommended'.format(col)] = recommended_plan[
+                                '{}-recommended'.format(col)].apply(
+                                lambda x: defect[col].values[0] if x is np.nan else ast.literal_eval(x))
+                        except:
+                            continue
+
+                    # ADD the not changed metrics to the plan to compute the overlap
+                    recommended_plan.columns = columns
+                    recommended_plan = merge_plan_with_origin(recommended_plan, defect)
+                    recommended_plan = recommended_plan.reindex(columns=actual.columns.to_list())
+
+                    max_overlap, list_overlap = overlapCF(recommended_plan, actual)
+                    rec = [1 if item in rec_col else 0 for item in defect.columns]
+                    size.append(size_interval([ast.literal_eval(x) for x in tmp_recommended.values[0]]))
+                    score2.append(len([n for n in rec if n != 0]))
+                    records.append(rec)
+                    tp, tn, fp, fn = abcd(defect.values[0], recommended_plan.values[0], actual.values[0], actionable)
+                    matrix.append([tp, tn, fp, fn])
+
+                    bugchange.append(bug3[j] - bug2[i])  # negative if reduced #bugs, positive if added
+
+                    score.append(max_overlap)
+    print("Runtime:", time.time() - start_time)
+    print(name[0])
+    print('>>>')
+    print('>>>')
+    print('>>>')
+    print(np.median(score))
+    return score, bugchange, size, score2, records, matrix

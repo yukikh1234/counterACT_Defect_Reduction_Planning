@@ -25,12 +25,6 @@ def main():
         ['velocity-1.4.csv', 'velocity-1.5.csv', 'velocity-1.6.csv'],
         ['poi-1.5.csv', 'poi-2.5.csv', 'poi-3.0.csv'],
         ['synapse-1.0.csv', 'synapse-1.1.csv', 'synapse-1.2.csv'],
-        # ['xalan-all.csv', 'ant-1.6.csv', 'ant-1.7.csv'],
-        # ['log4j-all.csv', 'ant-1.6.csv', 'ant-1.7.csv'],
-        # ['camel-all.csv', 'log4j-1.1.csv', 'log4j-1.2.csv'],
-        # ['velocity-all.csv', 'synapse-1.1.csv', 'synapse-1.2.csv'],
-        # ['jedit-all.csv', 'poi-1.5.csv', 'poi-2.5.csv'],
-        # ['synapse-all.csv', 'xalan-2.5.csv', 'xalan-2.6.csv']
 
         ]
 
@@ -47,6 +41,23 @@ def main():
         score_2cf.append(score_2)
         records2_cf.append(rec)
         con_matrix1_cf.append(mat)
+
+    paras = [True]
+    explainer = None
+
+    # ARM planner
+    scores_arm, bcs_arm = [], []
+    size_arm, score_2arm = [], []
+    records2_arm = []
+    con_matrix1_arm = []
+    for name in fnames:
+        score, bc, size, score_2, rec, mat = ARM(name)
+        scores_arm.append(score)
+        bcs_arm.append(bc)
+        size_arm.append(size)
+        score_2arm.append(score_2)
+        records2_arm.append(rec)
+        con_matrix1_arm.append(mat)
 
     paras = [True]
     explainer = None
@@ -186,6 +197,8 @@ def main():
     pd.DataFrame(scores2_shat).to_csv("results/rq1_Shat.csv")
     pd.DataFrame(score2_rw).to_csv("results/rq1_Random.csv")
     pd.DataFrame(score_2cf).to_csv("results/rq1_CF.csv")
+    pd.DataFrame(score_2arm).to_csv("results/rq1_ARM.csv")
+
 
     pd.DataFrame(scores_t).to_csv("results/rq2_TimeLIME.csv")
     pd.DataFrame(scores_f).to_csv("results/rq2_LIME.csv")
@@ -195,6 +208,7 @@ def main():
     pd.DataFrame(scores_shat).to_csv("results/rq2_Shat.csv")
     pd.DataFrame(scores_rw).to_csv("results/rq2_Random.csv")
     pd.DataFrame(scores_cf).to_csv("results/rq2_CF.csv")
+    pd.DataFrame(scores_arm).to_csv("results/rq2_ARM.csv")
 
     pd.DataFrame(bcs_t).to_csv("results/rq3_TimeLIME.csv")
     pd.DataFrame(bcs_f).to_csv("results/rq3_LIME.csv")
@@ -204,6 +218,7 @@ def main():
     pd.DataFrame(bcs_shat).to_csv("results/rq3_Shat.csv")
     pd.DataFrame(bcs_rw).to_csv("results/rq3_Random.csv")
     pd.DataFrame(bcs_cf).to_csv("results/rq3_CF.csv")
+    pd.DataFrame(bcs_arm).to_csv("results/rq3_ARM.csv")
 
     pd.DataFrame(con_matrix1).to_csv("results/rq3_matrix_Timeline.csv")
     pd.DataFrame(cm_f).to_csv("results/rq3_matrix_LIME.csv")
@@ -213,6 +228,7 @@ def main():
     pd.DataFrame(cm_shat).to_csv("results/rq3_matrix_Shat.csv")
     pd.DataFrame(cm_rw).to_csv("results/rq3_matrix_Random.csv")
     pd.DataFrame(con_matrix1_cf).to_csv("results/rq3_matrix_CF.csv")
+    pd.DataFrame(con_matrix1_arm).to_csv("results/rq3_matrix_ARM.csv")
 
     return
 
