@@ -1,35 +1,33 @@
-# CounterACT: Counterfactual ACTtion Rule mining Approach
+# CounterACT: Counterfactual ACTion Rule Mining Approach
 
-## RQ results of CounterACT
+## Experiment Reproduction
 
-+ To get the results that answer the research questions in the paper, first
-run runexp.py to get measurement scores for all planners
+To reproduce the experiments and obtain the results presented in our study, please follow these steps:
 
-+ Then run the specific rqx.py to get results for the corresponding RQ. 
+1. **Run Experiment Script**: Execute the `runexp.py` script to perform the experiments. This process will generate and store all the resulting data in the `data` directory in CSV format.
 
-+ A sample result for all 3 RQs is placed under results directory. 
+2. **Research Questions (RQs) Analysis**: For each research question, execute the respective `rq1.py`, `rq2.py`, or `rq3.py` script. These scripts will compute and present the results for each RQ.
 
-## What is CounterACT?
-CounterACT proposes `maintainable` and `achievable` plans to each
-individual file within the project.
-The following is an example illustrating how CounterACT's plans can be applied
-by practitioners. 
+3. **Precision and Recall Calculation**: Use the `precision_recall.py` script to calculate precision and recall metrics at both the release and commit levels. Set the parameter `commit=True` for commit level calculations.
 
-#Example
+## Results Directory
 
-## Step 1: Select the actionable features 
-Hedge function will report the features wth the highest variance in the historical data. 
-We select the TOP-M features to change in our plans. M is user specifed. In our study we used 5.
- 
+Sample results for all three RQs are available in the `results` directory for reference and validation of the experiment outcomes.
 
-## Step 2: Action Rule mining
-Action Rule mining algorithm will generate Action rules from
-the project between `previous` release and `current` release. Such
-results will be used to generate plans according to the historical records. 
-CounterACT only give plans that happended to `actionable` features.
+## Understanding CounterACT
 
+CounterACT is designed to propose maintainable and achievable action plans for each file within a project. These plans are derived from a counterfactual action rule mining approach, tailored to guide practitioners in improving project outcomes.
 
-## Step 3: Generate plans
-CounterACT recommends plans by using the action rules mined from historical data
+### Example Usage of CounterACT
 
+#### Step 1: Select Actionable Features
 
+- **Feature Identification**: The Hedge function identifies features with significant variance in historical data. Users can select the top-M features to consider for planning, where M is user-defined. In our case study, we selected the top 5 features.
+
+#### Step 2: Mine Action Rules
+
+- **Action Rule Mining**: This process generates action rules based on the data between the previous and current release of the project, allowing the creation of plans grounded in historical records. CounterACT focuses on actionable features identified in Step 1.
+
+#### Step 3: Generate and Select Plans
+
+- **Plan Recommendation and Selection**: CounterACT recommends plans using the action rules mined from the historical data. The plan selection process is based on the effectiveness and success of similar actions in historical data, ensuring that the proposed plans are not only actionable but also proven to be successful in past implementations.
