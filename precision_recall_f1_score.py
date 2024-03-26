@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 import matplotlib.patches as patches
 
-commit = False
+commit = True
 
 
 def f1_score_from_list(precision_list, recall_list):
@@ -38,8 +38,11 @@ def main():
         scores_oliv = [[ast.literal_eval(s) for s in sublist] for sublist in scores_oliv]
         scores_Shat = readfile('results/rq3_Shat_commit.csv')
         scores_Shat = [[ast.literal_eval(s) for s in sublist] for sublist in scores_Shat]
-        list1 = [scores_t, scores_f, scores_x, scores_alve, scores_Shat, scores_oliv]
-        names = np.array(['TimeLIME', 'LIME', 'XTREE', 'Alves', 'Shatnawi', 'Oliveira'])
+        scores_rw = readfile('results/rq3_matrix_Random.csv')
+        scores_rw = [[ast.literal_eval(s) for s in sublist] for sublist in scores_rw]
+        list1 = [scores_t, scores_f, scores_x, scores_alve, scores_Shat, scores_oliv,scores_rw]
+        
+        names = np.array(['TimeLIME', 'LIME', 'XTREE', 'Alves', 'Shatnawi', 'Oliveira','Random'])
         projects = ['kafka', 'activecluster', 'nifi', 'zookeper', 'phoenix']
 
     else:
@@ -64,6 +67,7 @@ def main():
         names = np.array(['TimeLIME', 'LIME', 'XTREE', 'Alves', 'Shatnawi', 'Oliveira', 'Random', 'CounterACT'])
         projects = ['jedit', 'camel1', 'camel2', 'log4j', 'xalan', 'ant',
                     'velocity', 'poi', 'synapse']
+
 
     results_recalls = [projects]
     results_precisions = [projects]
@@ -91,28 +95,31 @@ def main():
         results_precisions.append(precisions)
         results_f1_scores.append(f1_scores)
 
+
     return results_precisions, results_recalls, results_f1_scores
 
 
 if __name__ == "__main__":
     if commit:
-        names = np.array(['TimeLIME', 'LIME', 'XTREE', 'Alves', 'Shatnawi', 'Oliveira'])
+        names = np.array(['TimeLIME', 'LIME', 'XTREE', 'Alves', 'Shatnawi', 'Oliveira','Random'])
         precision, recall, f1_score = main()
-        print(recall)
+
+        print(precision)
+
         results_f1_score = pd.DataFrame(f1_score)
         results_f1_score.columns = results_f1_score.iloc[0]
         results_f1_score = results_f1_score[1:].set_index(names).T
 
-        results_f1_score = results_f1_score.drop(results_f1_score.index[-6:], axis=0)
 
+
+        # results_f1_score = results_f1_score.drop(results_f1_score.index[-6:], axis=0)
         print(results_f1_score)
+
         results_recalls = pd.DataFrame(recall)
         results_recalls.columns = results_recalls.iloc[0]
         results_recalls = results_recalls[1:].set_index(names).T
 
-        CounterACT_recall = [74, 78, 70, 78, 67]
-        results_recalls['CounterACT'] = [74, 78, 70, 78, 67]
-        results_recalls = results_recalls.drop(results_recalls.index[-6:], axis=0)
+        # results_recalls = results_recalls.drop(results_recalls.index[-6:], axis=0)
 
         results_recalls = pd.DataFrame(recall)
         results_recalls.columns = results_recalls.iloc[0]
@@ -121,21 +128,34 @@ if __name__ == "__main__":
         results_precision = pd.DataFrame(precision)
         results_precision.columns = results_precision.iloc[0]
         results_precision = results_precision[1:].set_index(names).T
-        results_precision = results_precision.drop(results_precision.index[-6:], axis=0)
+        # results_precision = results_precision.drop(results_precision.index[-6:], axis=0)
+        CounterACT_recall = [74, 78, 70, 78, 67]
+        results_recalls['CounterACT'] = [74, 78, 70, 78, 67]
+
+        
+        ARM_recall = [45, 37, 38, 37, 34]
+        results_recalls['ARM'] = [45, 37, 38, 37, 34]
+
         CounterACT_precision = [74, 78, 70, 78, 67]
         results_precision['CounterACT'] = [70, 50, 82, 83, 55]
+
+        ARM_precision = [11, 46, 46, 34, 40] 
+        results_precision['ARM'] = [11, 46, 46, 34, 40] 
 
         f1_scores = f1_score_from_list(CounterACT_recall, CounterACT_precision)
         results_f1_score['CounterACT'] = f1_scores
 
+        f1_scores = f1_score_from_list(ARM_recall, ARM_precision)
+        results_f1_score['ARM'] = f1_scores
+
     else:
 
-        names = np.array(['TimeLIME', 'LIME', 'XTREE', 'Alves', 'Shatnawi', 'Oliveira', 'Random', 'CounterACT'])
+        names = np.array(['TimeLIME', 'LIME', 'XTREE', 'Alves', 'Shatnawi', 'Oliveira', 'Random','CounterACT'])
 
         precision, recall, f1_score = main()
-        print(recall)
         results_f1_score = pd.DataFrame(f1_score)
         results_f1_score.columns = results_f1_score.iloc[0]
+
         results_f1_score = results_f1_score[1:].set_index(names).T
 
         results_f1_score = results_f1_score.drop(results_f1_score.index[-1:], axis=0)
@@ -151,23 +171,34 @@ if __name__ == "__main__":
         results_precision = results_precision[1:].set_index(names).T
         results_precision = results_precision.drop(results_precision.index[-1:], axis=0)
 
-    print(results_f1_score.mean())
+        ARM_recall = [37, 1, 10, 11, 46, 16, 33, 31.5]
+        results_recalls['ARM'] = ARM_recall
+
+        ARM_precision = [39, 16, 13, 1,37, 12, 34.27, 31.55] 
+        results_precision['ARM'] = ARM_precision
+        
+        f1_scores = f1_score_from_list(ARM_recall, ARM_precision)
+        results_f1_score['ARM'] = f1_scores
+
+
+    names = np.array(['TimeLIME', 'LIME', 'XTREE', 'Alves', 'Shatnawi', 'Oliveira', 'Random',"ARM", 'CounterACT'])
+
     results_precision['Type'] = 'Precision'
     results_recalls['Type'] = 'Recall'
     results_f1_score['Type'] = 'F1_score'
 
     # combine dataframes into a single dataframe
     df_combined = pd.concat([results_precision, results_recalls, results_f1_score])
-
-    fig, axs = plt.subplots(nrows=1, ncols=8, figsize=(20, 3), sharey=True)
+    fig, axs = plt.subplots(nrows=1, ncols=9, figsize=(24, 3), sharey=True)
 
     # Add a red box to the 6th subplot
-    for spine in axs[7].spines.values():
+    for spine in axs[8].spines.values():
         spine.set_edgecolor('navy')
         spine.set_linewidth(2)
-    for i in range(8):
+    for i in range(9):
+        df_combined.fillna(0.0,inplace=True)
         # create boxplot using seaborn
-        sns.boxplot(y=names[i], data=df_combined, x='Type', ax=axs[i])
+        sns.boxplot(y=names[i], data=df_combined, x='Type', ax=axs[i], palette='Set2')
         axs[i].set_title(names[i])
     for ax in axs.flat:
         ax.set_xlabel('')
@@ -178,7 +209,7 @@ if __name__ == "__main__":
 
 
     # show the plot
-    plt.savefig('precision_recall_score_release.pdf', format='pdf')
+    plt.savefig('precision_recall_score_commit.pdf', format='pdf')
 
     plt.show()
 
