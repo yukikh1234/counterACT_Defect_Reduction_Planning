@@ -11,6 +11,5 @@ To reproduce the experiments and obtain the results presented in our study, plea
 3. **Precision and Recall calculation**: Use the `precision_recall.py` script to calculate precision and recall metrics at both the release and commit levels. Set the parameter `commit=True` for commit level calculations.
 
 ## Results directory
-
 Sample results for all three RQs are available in the `results` directory for reference and validation of the experiment outcomes.
 
