@@ -98,13 +98,12 @@ if __name__ == "__main__":
     results_overlap.columns = names
     results_overlap = results_overlap.T
     results_overlap.columns = projects
-    # results_overlap.T.to_excel('results/RQs/RQ2_overlap_cross_project.xlsx')
 
     results_IQR = pd.DataFrame(results_IQR)
     results_IQR.columns = names
     results_IQR = results_IQR.T
     results_IQR.columns = projects
 
-    print(results_overlap.T)
+    results_overlap.T.to_excel('results/commit_ndpv.xlsx')
 
-    print(results_IQR.T)
+    results_IQR.T.to_excel('results/commit_ndpv.xlsx')

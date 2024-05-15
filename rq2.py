@@ -20,15 +20,6 @@ def main():
 
         ]
 
-    # fnames = [
-    #     ['kafka_x.csv', 'kafka_y.csv', 'kafka_z.csv'],
-    #     ['activecluster_x.csv', 'activecluster_y.csv', 'activecluster_z.csv'],
-    #     ['nifi_x.csv', 'nifi_y.csv', 'nifi_z.csv'],
-    #     ['zookeper_x.csv', 'zookeper_y.csv', 'zookeper_z.csv'],
-    #     ['phoenix_x.csv', 'phoenix_y.csv', 'phoenix_z.csv']
-    #
-    # ]
-    # scores_t = readfile('results/rq2_TimeLIME.csv')
     scores_f = readfile('results/rq2_LIME.csv')
     scores_x = readfile('results/rq2_XTREE.csv')
     scores_alve = readfile('results/rq2_Alves.csv')
@@ -82,7 +73,6 @@ def main():
     names = ['TimeLIME','LIME','XTREE','Alves','Shatnawi','Oliveira','Random','CF']
     projects = ['jedit', 'camel1', 'camel2', 'log4j', 'xalan', 'ant',
                 'velocity', 'poi', 'synapse']
-    # projects = ['xalan-ant','log4j-ant','camel-log4j']
 
 
     results_NDPV=[projects]
@@ -127,9 +117,9 @@ if __name__ == "__main__":
     results_NDPV.columns = results_NDPV.iloc[0]
     results_NDPV = results_NDPV[1:].set_index(names)
 
-    print(results_overlap.T)
+    results_overlap.T.to_excel('results/release_overlap.xlsx')
 
-    print(results_IQR.T)
+    results_IQR.T.to_excel('results/release_iqr.xlsx')
 
-    print(results_NDPV.T)
+    results_NDPV.T.to_excel('results/release_ndpv.xlsx')
 

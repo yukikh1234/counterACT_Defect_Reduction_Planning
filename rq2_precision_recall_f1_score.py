@@ -112,14 +112,12 @@ if __name__ == "__main__":
 
 
 
-        # results_f1_score = results_f1_score.drop(results_f1_score.index[-6:], axis=0)
         print(results_f1_score)
 
         results_recalls = pd.DataFrame(recall)
         results_recalls.columns = results_recalls.iloc[0]
         results_recalls = results_recalls[1:].set_index(names).T
 
-        # results_recalls = results_recalls.drop(results_recalls.index[-6:], axis=0)
 
         results_recalls = pd.DataFrame(recall)
         results_recalls.columns = results_recalls.iloc[0]
@@ -128,7 +126,6 @@ if __name__ == "__main__":
         results_precision = pd.DataFrame(precision)
         results_precision.columns = results_precision.iloc[0]
         results_precision = results_precision[1:].set_index(names).T
-        # results_precision = results_precision.drop(results_precision.index[-6:], axis=0)
         CounterACT_recall = [74, 78, 70, 78, 67]
         results_recalls['CounterACT'] = [74, 78, 70, 78, 67]
 
@@ -207,9 +204,11 @@ if __name__ == "__main__":
 
     fig.subplots_adjust(top=0.8, hspace=1.1)
 
+    #set type = commit if commit=True , elseit is release
+    type = "commit"
 
     # show the plot
-    plt.savefig('precision_recall_score_commit.pdf', format='pdf')
+    plt.savefig(f'results/precision_recall_score_{type}.pdf', format='pdf')
 
     plt.show()
 
